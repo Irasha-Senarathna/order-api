@@ -44,8 +44,22 @@ def list_orders():
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    return [{"id": r[0], "item": r[1], "quantity": r[2],
-cat > requirements.txt << 'EOF'
-fastapi==0.115.0
-uvicorn==0.30.0
-psycopg2-binary==2.9.9
+    return [{"id": r[0], "item": r[1], "quantity": r[2], "status": r[3]} for r in rows]
+
+@app.post("/orders")
+def create_order(payload: dict):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO orders (item, quantity) VALUES (%s, %s) RETURNING id",
+        (payload["item"], payload["quantity"])
+    )
+    order_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"id": order_id, "item": payload["item"], "quantity": payload["quantity"], "status": "pending"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
