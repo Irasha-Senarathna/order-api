@@ -1,10 +1,15 @@
 import os
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +33,7 @@ def get_db():
 
 @app.on_event("startup")
 def startup():
+    logger.info("Starting up order-api — connecting to database")
     conn = get_db()
     cur = conn.cursor()
     cur.execute("""
@@ -40,20 +46,23 @@ def startup():
     """)
     conn.commit()
     cur.close()
+    logger.info("Database ready — orders table verified")
 
 @app.get("/orders")
 def list_orders():
+    logger.info("Fetching all orders")
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT id, item, quantity, status FROM orders ORDER BY id DESC")
     rows = cur.fetchall()
     cur.close()
     conn.close()
+    logger.info(f"Returning {len(rows)} orders")
     return [{"id": r[0], "item": r[1], "quantity": r[2], "status": r[3]} for r in rows]
 
 @app.post("/orders")
 def create_order(payload: dict):
-    logger.info(f"Creating order: {payload}")
+    logger.info(f"Creating order: item={payload.get('item')} quantity={payload.get('quantity')}")
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
@@ -64,9 +73,10 @@ def create_order(payload: dict):
     conn.commit()
     cur.close()
     conn.close()
-    logger.info(f"Order created successfully: {order_id}")  
+    logger.info(f"Order created successfully: id={order_id} item={payload['item']}")
     return {"id": order_id, "item": payload["item"], "quantity": payload["quantity"], "status": "pending"}
 
 @app.get("/health")
 def health():
+    logger.info("Health check requested")
     return {"status": "ok"}
