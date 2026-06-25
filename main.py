@@ -2,6 +2,11 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -48,6 +53,7 @@ def list_orders():
 
 @app.post("/orders")
 def create_order(payload: dict):
+    logger.info(f"Creating order: {payload}")
     conn = get_db()
     cur = conn.cursor()
     cur.execute(
@@ -58,6 +64,7 @@ def create_order(payload: dict):
     conn.commit()
     cur.close()
     conn.close()
+    logger.info(f"Order created successfully: {order_id}")  
     return {"id": order_id, "item": payload["item"], "quantity": payload["quantity"], "status": "pending"}
 
 @app.get("/health")
